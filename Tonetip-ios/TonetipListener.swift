@@ -1,23 +1,18 @@
 //
 //  TonetipListener.swift
-//  Tonetip-ios
-//
-//  Created by Inowu on 07/02/25.
 //
 
 import AVFoundation
 
 public class TonetipListenerBase: NSObject {
     public var audioEngine: AVAudioEngine?
+    public var audioMixerNode: AVAudioMixerNode?
     public var audioSession: AVAudioSession?
     public var decoder: DecoderMFSK?
     
-    // Closure que se invoca cuando se detecta un tono decodificado.
     public var onDecodedTone: ((String, Int) -> Void)?
     
     private var frequency: Int
-    private var lastUpdateTime = Date()
-    private let updateInterval: TimeInterval = 0.5
 
     public init(frequency: Int) {
         self.frequency = frequency
@@ -25,18 +20,22 @@ public class TonetipListenerBase: NSObject {
         decoder = DecoderMFSK(speed: 2, freq: Float(frequency))
         initAudioSession()
     }
-
+    
     public func initAudioSession() {
         audioSession = AVAudioSession.sharedInstance()
         do {
-            try audioSession?.setCategory(.playAndRecord, options: [.mixWithOthers, .defaultToSpeaker, .allowBluetooth, .allowBluetoothA2DP])
+            try audioSession?.setCategory(.playAndRecord,
+                                          options: [.mixWithOthers,
+                                                    .defaultToSpeaker,
+                                                    .allowBluetooth,
+                                                    .allowBluetoothA2DP])
             try audioSession?.setActive(true)
             try audioSession?.setAllowHapticsAndSystemSoundsDuringRecording(true)
         } catch {
             print("Error setting up audio session: \(error.localizedDescription)")
         }
     }
-
+    
     public func startListening() {
         decoder = DecoderMFSK(speed: 2, freq: Float(frequency))
         initAudioEngine()
@@ -49,29 +48,42 @@ public class TonetipListenerBase: NSObject {
             print("Error starting listening: \(error.localizedDescription)")
         }
     }
-
+    
     public func stopListening() {
-        audioEngine?.inputNode.removeTap(onBus: 0)
+        audioMixerNode?.removeTap(onBus: 0)
         audioEngine?.stop()
         try? audioSession?.setActive(false)
         print("🛑 Microphone stopped for \(frequency)Hz.")
     }
-
+    
     private func initAudioEngine() {
         audioEngine = AVAudioEngine()
         guard let inputNode = audioEngine?.inputNode else {
             print("No input node available")
             return
         }
-        let sampleRate: Double = 48000
-        let format = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: sampleRate, channels: 1, interleaved: true)!
         
-        let bufferSize: AVAudioFrameCount = 2048
-        inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: format) { [weak self] (buffer, _) in
+        audioMixerNode = AVAudioMixerNode()
+        audioMixerNode!.volume = 0.0
+        audioEngine?.attach(audioMixerNode!)
+        
+        let inputFormat = inputNode.inputFormat(forBus: 0)
+        let outputFormat = AVAudioFormat(commonFormat: .pcmFormatInt16,
+                                         sampleRate: 48000.0,
+                                         channels: 1,
+                                         interleaved: true)!
+        
+        audioEngine?.connect(inputNode, to: audioMixerNode!, format: inputFormat)
+        audioEngine?.connect(audioMixerNode!, to: audioEngine!.mainMixerNode, format: outputFormat)
+        
+        let bufferSize: AVAudioFrameCount = 1024
+        audioMixerNode?.installTap(onBus: 0,
+                                   bufferSize: bufferSize,
+                                   format: audioMixerNode?.outputFormat(forBus: 0)) { [weak self] (buffer, _) in
             self?.processAudioBuffer(buffer)
         }
     }
-
+    
     private func processAudioBuffer(_ buffer: AVAudioPCMBuffer) {
         guard let channelData = buffer.int16ChannelData else {
             print("❌ Error: Failed to get audio channel.")
@@ -82,16 +94,12 @@ public class TonetipListenerBase: NSObject {
             print("⚠️ Warning: bufferLength is 0. No data to process.")
             return
         }
-        let samples = Array(UnsafeBufferPointer(start: channelData[0], count: bufferLength))
-        if let decodedString = decoder?.processSamples(samples) {
-            let currentTime = Date()
-            if currentTime.timeIntervalSince(lastUpdateTime) > updateInterval {
-                lastUpdateTime = currentTime
-                DispatchQueue.main.async { [weak self] in
-                    if let freq = self?.frequency {
-                        self?.onDecodedTone?(decodedString, freq)
-                        
-                    }
+        let pointer = channelData[0]
+        
+        if let decodedString = decoder?.processSamples(Array(UnsafeBufferPointer(start: pointer, count: bufferLength))) {
+            DispatchQueue.main.async { [weak self] in
+                if let freq = self?.frequency {
+                    self?.onDecodedTone?(decodedString, freq)
                 }
             }
         }
