@@ -65,35 +65,22 @@ public class TonetipListenerBase: NSObject {
         mixer.volume = 0
         engine.attach(mixer)
 
+        // Formatos
         let inFmt = input.inputFormat(forBus: 0)
         let targetFmt = AVAudioFormat(commonFormat: .pcmFormatInt16,
                                       sampleRate: 48_000,
                                       channels: 1,
                                       interleaved: true)!
 
+        // Conecta input → mixer → mainMixer
         engine.connect(input, to: mixer, format: inFmt)
         engine.connect(mixer, to: engine.mainMixerNode, format: targetFmt)
 
-        let converter = AVAudioConverter(from: inFmt, to: targetFmt)
-        mixer.installTap(onBus: 0, bufferSize: 1024, format: inFmt) { [weak self] buf, _ in
-            guard let self = self else { return }
-            let outBuf: AVAudioPCMBuffer
-            if let conv = converter {
-                outBuf = AVAudioPCMBuffer(pcmFormat: targetFmt,
-                                          frameCapacity: AVAudioFrameCount(
-                                            targetFmt.sampleRate * Double(buf.frameLength) / inFmt.sampleRate
-                                          ))!
-                var done = false
-                let block: AVAudioConverterInputBlock = { _, status in
-                    status.pointee = done ? .noDataNow : .haveData
-                    done = true
-                    return buf
-                }
-                try? conv.convert(to: outBuf, error: nil, withInputFrom: block)
-            } else {
-                outBuf = buf
-            }
-            self.processAudioBuffer(outBuf)
+        // Tap **en el mixer**, usando el formato FINAL (targetFmt)
+        mixer.installTap(onBus: 0,
+                         bufferSize: 1024,
+                         format: targetFmt) { [weak self] buffer, _ in
+            self?.processAudioBuffer(buffer)
         }
 
         audioEngine = engine
