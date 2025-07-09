@@ -7,7 +7,7 @@ ToneTip SDK is a Swift library that allows you to decode [ToneTips](https://tone
 To install the SDK, use CocoaPods:
 
 ```swift
-pod 'tonetip_ios', '~> 1.0.3'
+pod 'tonetip_ios', '~> 1.0.4'
 ```
 
 ## API Key Requirement
