@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name         = 'tonetip_ios'
-  s.version      = '1.0.1'
+  s.version      = '1.0.2'
   s.summary      = 'Library for decoding and sending ToneTip telemetry.'
   s.description  = <<-DESC
 tonetip_ios is a robust, high-performance library designed for decoding and sending ToneTip telemetry on iOS devices. It enables developers to efficiently process telemetry data from ToneTip devices, ensuring secure and reliable real-time communication.
@@ -12,7 +12,7 @@ DESC
   s.homepage     = 'https://tonetip.com'
   s.license      = { :type => 'Copyright (c) 2025 ToneTip, all rights reserved.', :file => 'LICENSE.txt' }
   s.author       = { 'ToneTip' => 'dan@tonetip.com' }
-  s.source       = { :git => 'https://github.com/Inowu/tonetip-swift.git', :tag => '1.0.1' }
+  s.source       = { :git => 'https://github.com/Inowu/tonetip-swift.git', :tag => '1.0.2' }
   s.platform = :ios, '13.0'
   s.swift_versions = ['5.0']
   s.source_files = 'Tonetip-ios/**/*.{swift,h}'

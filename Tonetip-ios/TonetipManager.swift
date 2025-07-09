@@ -27,15 +27,35 @@ public class TonetipManager {
         }
     }
 
-    public func startListening() {
-        listener19k.startListening()
-        listener14k.startListening()
-    }
+    public func startListening(completion: @escaping (Error?) -> Void) {
+            let group = DispatchGroup()
+            var startError: Error?
+
+            [listener19k, listener14k].forEach { listener in
+                group.enter()
+                listener.start { error in
+                    if let e = error {
+                        startError = e
+                    }
+                    group.leave()
+                }
+            }
+
+            group.notify(queue: .main) {
+                if let e = startError {
+                    print("❌ TonetipManager failed to start:", e)
+                } else {
+                    print("✅ TonetipManager listening on 14 kHz & 19 kHz")
+                }
+                completion(startError)
+            }
+        }
 
     public func stopListening() {
-        listener19k.stopListening()
-        listener14k.stopListening()
-    }
+            listener19k.stop()
+            listener14k.stop()
+            print("🛑 TonetipManager stopped all listeners")
+        }
 
     private func handleDecodedTone(uarc: String, frequency: Int) {
         
