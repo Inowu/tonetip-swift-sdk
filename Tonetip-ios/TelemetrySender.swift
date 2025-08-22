@@ -21,7 +21,6 @@ public class TelemetrySender {
             return
         }
         
-        // Primer endpoint: /api/decodes
         let decodeURL = URL(string: "\(ToneTipConfig.baseURL)/api/decodes")!
         var decodeRequest = URLRequest(url: decodeURL)
         decodeRequest.httpMethod = "POST"

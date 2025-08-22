@@ -11,14 +11,12 @@ public class TonetipManager {
     private var listener19k: TonetipListenerBase
     private var listener14k: TonetipListenerBase
 
-    // Delegate que la app implementa; se notificará solo si telemetry es exitoso.
     public var delegate: TonetipDelegate?
 
     public init() {
         listener19k = TonetipListenerBase(frequency: 19000)
         listener14k = TonetipListenerBase(frequency: 14000)
         
-        // Asignamos la closure onDecodedTone para manejar el UARC.
         listener19k.onDecodedTone = { [weak self] uarc, frequency in
             self?.handleDecodedTone(uarc: uarc, frequency: frequency)
         }
