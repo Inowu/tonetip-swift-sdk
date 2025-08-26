@@ -154,34 +154,42 @@ class ObfTRS {
     }
 }
 
-class ObfFft {
+final class ObfFft {
+    private static var cache: [Int: FFTSetup] = [:]
+    private static let lock = NSLock()
+
     static func fftF(inp: [Float], outR: inout [Float], outI: inout [Float]) -> Bool {
         let N = inp.count
-        guard let l = validLog2(N) else { return false }
+        var log2n = 0
+        var v = N
+        while v > 1 { v >>= 1; log2n += 1 }
+        guard (2...14).contains(log2n) else { return false }
+
+        var setup: FFTSetup!
+        lock.lock()
+        if let s = cache[log2n] {
+            setup = s
+        } else {
+            setup = vDSP_create_fftsetup(vDSP_Length(log2n), FFTRadix(kFFTRadix2))
+            cache[log2n] = setup
+        }
+        lock.unlock()
+
+        if outR.count < N { outR = [Float](repeating: 0, count: N) }
+        if outI.count < N { outI = [Float](repeating: 0, count: N) }
+
         outR.withUnsafeMutableBufferPointer { rPtr in
             outI.withUnsafeMutableBufferPointer { iPtr in
-                var sp = DSPSplitComplex(realp: rPtr.baseAddress!, imagp: iPtr.baseAddress!)
-                for x in 0..<N {
-                    sp.realp[x] = inp[x]
-                    sp.imagp[x] = 0
+                guard let realp = rPtr.baseAddress, let imagp = iPtr.baseAddress else { return }
+                inp.withUnsafeBufferPointer { inPtr in
+                    cblas_scopy(Int32(N), inPtr.baseAddress!, 1, realp, 1)
+                    vDSP_vclr(imagp, 1, vDSP_Length(N))
+                    var split = DSPSplitComplex(realp: realp, imagp: imagp)
+                    vDSP_fft_zrip(setup, &split, 1, vDSP_Length(log2n), FFTDirection(FFT_FORWARD))
                 }
-                guard let set = vDSP_create_fftsetup(vDSP_Length(l), FFTRadix(kFFTRadix2)) else { return }
-                vDSP_fft_zrip(set, &sp, 1, vDSP_Length(l), FFTDirection(FFT_FORWARD))
-                vDSP_destroy_fftsetup(set)
             }
         }
         return true
-    }
-
-    private static func validLog2(_ n: Int) -> Int? {
-        var tmp = n
-        var count = 0
-        while tmp > 1 {
-            if tmp % 2 != 0 { return nil }
-            tmp /= 2
-            count += 1
-        }
-        return count
     }
 }
 
@@ -416,7 +424,7 @@ public class DecoderMFSK {
 
         for k in 0..<DecoderMFSK.J {
             let forward = (k < 8)
-            let (val, off) = forward ? getMax(idx, 7) : getMax(idx, -7)
+            let (val, _) = forward ? getMax(idx, 7) : getMax(idx, -7)
             r_[k] = decSym(val)
             idx = (idx + DecoderMFSK.G) & DecoderMFSK.I
         }
