@@ -1,62 +1,41 @@
 //
 //  TonetipManager.swift
-//  Tonetip-ios
-//
-//  Created by Inowu on 07/02/25.
 //
 
 import UIKit
 
 public class TonetipManager {
-    private var listener19k: TonetipListenerBase
-    private var listener14k: TonetipListenerBase
-
+    private var listener: TonetipListenerBase
     public var delegate: TonetipDelegate?
 
     public init() {
-        listener19k = TonetipListenerBase(frequency: 19000)
-        listener14k = TonetipListenerBase(frequency: 14000)
-        
-        listener19k.onDecodedTone = { [weak self] uarc, frequency in
-            self?.handleDecodedTone(uarc: uarc, frequency: frequency)
-        }
-        listener14k.onDecodedTone = { [weak self] uarc, frequency in
+        listener = TonetipListenerBase(frequencies: [19000, 14000])
+
+        listener.debugEnabled = false
+        listener.forceBuiltInMic = false
+
+        listener.onDecodedTone = { [weak self] uarc, frequency in
             self?.handleDecodedTone(uarc: uarc, frequency: frequency)
         }
     }
 
     public func startListening(completion: @escaping (Error?) -> Void) {
-            let group = DispatchGroup()
-            var startError: Error?
-
-            [listener19k, listener14k].forEach { listener in
-                group.enter()
-                listener.start { error in
-                    if let e = error {
-                        startError = e
-                    }
-                    group.leave()
-                }
+        listener.start { error in
+            if let e = error {
+                print("❌ TonetipManager failed to start:", e)
+            } else {
+                print("✅ TonetipManager listening on 14 kHz & 19 kHz")
             }
-
-            group.notify(queue: .main) {
-                if let e = startError {
-                    print("❌ TonetipManager failed to start:", e)
-                } else {
-                    print("✅ TonetipManager listening on 14 kHz & 19 kHz")
-                }
-                completion(startError)
-            }
+            completion(error)
         }
+    }
 
     public func stopListening() {
-            listener19k.stop()
-            listener14k.stop()
-            print("🛑 TonetipManager stopped all listeners")
-        }
+        listener.stop()
+        print("🛑 TonetipManager stopped listener")
+    }
 
     private func handleDecodedTone(uarc: String, frequency: Int) {
-        
         let device = UIDevice.current
         let telemetry = TelemetryData(
             sdk: "1.0.0",
@@ -69,7 +48,7 @@ public class TonetipManager {
             latitude: 0.0,
             longitude: 0.0
         )
-        
+
         TelemetrySender.sendTelemetry(data: telemetry) { success in
             if success {
                 DispatchQueue.main.async { [weak self] in

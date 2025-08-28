@@ -59,7 +59,6 @@ public class TelemetrySender {
                    let decodeObj = dataObj["decode"] as? [String: Any],
                    let decodeId = decodeObj["id"] as? String {
                     
-                    // Segundo endpoint: /api/decodes/{decodeId}/telemetry
                     let telemetryURL = URL(string: "\(ToneTipConfig.baseURL)/api/decodes/\(decodeId)/telemetry")!
                     var telemetryRequest = URLRequest(url: telemetryURL)
                     telemetryRequest.httpMethod = "POST"
