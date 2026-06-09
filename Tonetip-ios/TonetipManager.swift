@@ -49,14 +49,9 @@ public class TonetipManager {
             longitude: 0.0
         )
 
-        TelemetrySender.sendTelemetry(data: telemetry) { success in
-            if success {
-                DispatchQueue.main.async { [weak self] in
-                    self?.delegate?.drawnTone(uarc: uarc, frequency: frequency)
-                }
-            } else {
-                print("⚠️ Failed to send telemetry")
-            }
+        DispatchQueue.main.async { [weak self] in
+            self?.delegate?.drawnTone(uarc: uarc, frequency: frequency)
         }
+        TelemetrySender.sendTelemetry(data: telemetry) { _ in }
     }
 }
