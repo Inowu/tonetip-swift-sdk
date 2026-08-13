@@ -9,7 +9,10 @@ public class TonetipManager {
     public var delegate: TonetipDelegate?
 
     public init() {
-        listener = TonetipListenerBase(frequencies: [19000, 14000])
+        // Matches the Android SDK's band list. 20.5 kHz is what the NATT devices
+        // emit; DecoderMFSK derives its bins from freq, so the 48 kHz capture path
+        // resolves it without change (Nyquist 24 kHz).
+        listener = TonetipListenerBase(frequencies: [20500, 19500, 19000, 14000])
 
         listener.debugEnabled = false
         listener.forceBuiltInMic = false
@@ -24,7 +27,7 @@ public class TonetipManager {
             if let e = error {
                 print("❌ TonetipManager failed to start:", e)
             } else {
-                print("✅ TonetipManager listening on 14 kHz & 19 kHz")
+                print("✅ TonetipManager listening on 14, 19, 19.5 & 20.5 kHz")
             }
             completion(error)
         }
